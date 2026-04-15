@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منظومة تسجيل أفراد مدينة بيت حانون 2026</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        :root { 
+            --primary: #0f172a; 
+            --accent: #0ea5e9; 
+            --success: #10b981; 
+            --gold: #b45309; 
+            --sidebar: 280px; 
+            --soft-bg: #f1f5f9;
+        }
+        
+        body { font-family: 'Tajawal', sans-serif; background: var(--soft-bg); color: var(--primary); overflow-x: hidden; }
+        
+        .public-container { max-width: 1000px; margin: 40px auto; padding: 20px; }
+        .hero-banner { 
+            background: linear-gradient(135deg, var(--primary), #1e293b); 
+            color: white; padding: 50px 20px; border-radius: 40px; 
+            text-align: center; margin-bottom: 35px; 
+            border-bottom: 6px solid var(--accent);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+
+        .card-custom { 
+            background: white; border-radius: 25px; border: none; 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+            padding: 30px; margin-bottom: 25px;
+        }
+
+        .section-header { 
+            border-right: 5px solid var(--accent); 
+            padding-right: 15px; margin-bottom: 25px; 
+            font-weight: 900; color: var(--primary);
+        }
+
+        #adminDashboard { display: none; margin-right: var(--sidebar); padding: 30px; transition: 0.3s; }
+        .sidebar { 
+            width: var(--sidebar); background: var(--primary); 
+            height: 100vh; position: fixed; right: 0; top: 0; 
+            color: white; padding-top: 20px; z-index: 1000;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        }
+        
+        .nav-link { color: #94a3b8; padding: 15px 25px; transition: 0.3s; border-radius: 12px; margin: 5px 15px; display: block; text-decoration: none; font-weight: 500; }
+        .nav-link:hover, .nav-link.active { background: rgba(14, 165, 233, 0.1); color: var(--accent); }
+        
+        .stat-card { background: white; border-radius: 24px; padding: 25px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.02); text-align: center; }
+        .stat-card h2 { color: var(--accent); font-weight: 900; margin-top: 10px; }
+
+        #masterLogin { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 2000; align-items: center; justify-content: center; }
+
+        .loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; display: none; align-items: center; justify-content: center; flex-direction: column; }
+        
+        .form-control:focus, .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 0.25rem rgba(14, 165, 233, 0.25); }
+        label { font-weight: 700; margin-bottom: 8px; color: #475569; font-size: 0.9rem; }
+        
+        .declaration-box { background: #fff7ed; border: 1px dashed #fdba74; padding: 20px; border-radius: 15px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div id="loader" class="loader-overlay">
+    <div class="spinner-grow text-info" style="width: 3rem; height: 3rem;"></div>
+    <h5 class="fw-bold mt-3">جاري الاتصال بقاعدة البيانات...</h5>
+</div>
+
+<div id="publicUI" class="public-container">
+    <div class="hero-banner">
+        <h1 class="fw-black">🇵🇸 منظومة تسجيل أفراد مدينة بيت حانون</h1>
+        <p class="lead">بوابة التوثيق الرسمي الموحد للنازحين - تحديثات 2026</p>
+    </div>
+
+    <div class="card-custom text-center">
+        <h4 class="fw-bold mb-4">🔍 فحص القيد وتحديث البيانات</h4>
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <input type="number" id="searchID" class="form-control form-control-lg text-center shadow-sm" placeholder="أدخل رقم هوية رب الأسرة (9 أرقام)">
+                <button class="btn btn-primary btn-lg w-100 mt-3 rounded-pill fw-bold shadow" onclick="fetchUser()">فتح الملف الإلكتروني</button>
+            </div>
+        </div>
+        <div class="mt-4">
+            <button class="btn btn-link text-muted text-decoration-none" onclick="showLogin()">
+                <i class="fas fa-user-shield me-2"></i> الدخول للإدارة (Master)
+            </button>
+        </div>
+    </div>
+
+    <form id="regForm" style="display:none;" onsubmit="handleSave(event)">
+        <div class="card-custom">
+            <h5 class="section-header">👤 بيانات رب الأسرة الأساسية</h5>
+            <div class="row g-3">
+                <div class="col-md-6"><label>اسم رب الأسرة رباعي</label><input type="text" id="A_head_name" class="form-control" required></div>
+                <div class="col-md-6"><label>رقم الهوية (قفل)</label><input type="number" id="B_head_id" class="form-control bg-light" readonly></div>
+                <div class="col-md-4"><label>تاريخ الميلاد</label><input type="date" id="C_head_dob" class="form-control" onchange="calculateAge(this.value, 'D_head_age')"></div>
+                <div class="col-md-4"><label>العمر (تلقائي)</label><input type="number" id="D_head_age" class="form-control bg-light" placeholder="سيحسب تلقائياً" readonly></div>
+                <div class="col-md-4"><label>جنس رب الأسرة</label>
+                    <select id="Q_gender" class="form-select"><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option></select>
+                </div>
+                <div class="col-md-6"><label>رقم الجوال الأساسي</label><input type="tel" id="E_phone1" class="form-control" required></div>
+                <div class="col-md-6"><label>رقم الجوال الاحتياطي</label><input type="tel" id="F_phone2" class="form-control"></div>
+            </div>
+        </div>
+
+        <div class="card-custom">
+            <h5 class="section-header">👩 بيانات الزوجة والتابعين</h5>
+            <div class="row g-3">
+                <div class="col-md-6"><label>اسم الزوجة رباعي</label><input type="text" id="G_wife_name" class="form-control"></div>
+                <div class="col-md-6"><label>رقم هوية الزوجة</label><input type="number" id="H_wife_id" class="form-control"></div>
+                <div class="col-md-4"><label>تاريخ ميلاد الزوجة</label><input type="date" id="J_wife_dob" class="form-control" onchange="calculateAge(this.value, 'I_wife_age')"></div>
+                <div class="col-md-4"><label>عمر الزوجة (تلقائي)</label><input type="number" id="I_wife_age" class="form-control bg-light" placeholder="سيحسب تلقائياً" readonly></div>
+                <div class="col-md-4"><label>عدد أفراد الأسرة</label>
+                    <select id="L_members" class="form-select" required>
+                        <script>
+                            for(let i=1; i<=20; i++) document.write(`<option value="${i}">${i}</option>`);
+                        </script>
+                    </select>
+                </div>
+                <div class="col-md-4"><label>الحالة الاجتماعية</label>
+                    <select id="K_marital" class="form-select">
+                        <option value="متزوج">متزوج</option>
+                        <option value="أرمل">أرمل/ة</option>
+                        <option value="مطلق">مطلق/ة</option>
+                    </select>
+                </div>
+                <div class="col-md-4"><label>حالة حمل؟</label><select id="O_preg" class="form-select"><option value="لا">لا</option><option value="نعم">نعم</option></select></div>
+                <div class="col-md-4"><label>حالة رضاعة؟</label><select id="P_nurs" class="form-select"><option value="لا">لا</option><option value="نعم">نعم</option></select></div>
+            </div>
+        </div>
+
+        <div class="card-custom">
+            <h5 class="section-header">🏘️ السكن والحالة الصحية</h5>
+            <div class="row g-3">
+                <div class="col-md-6"><label>اسم المخيم/مركز الإيواء</label><input type="text" id="R_camp" class="form-control" required></div>
+                <div class="col-md-6"><label>إعاقات (إن وجدت)</label>
+                    <select id="M_disab" class="form-select">
+                        <option value="لا يوجد">لا يوجد</option>
+                        <option value="حركية">حركية</option>
+                        <option value="سمعية">سمعية</option>
+                        <option value="بصرية">بصرية</option>
+                        <option value="ذهنية">ذهنية</option>
+                        <option value="أخرى">أخرى</option>
+                    </select>
+                </div>
+                <div class="col-md-12"><label>الحالة الصحية العامة</label>
+                    <select id="N_health" class="form-select">
+                        <option value="جيدة جداً">جيدة جداً</option>
+                        <option value="مستقرة">مستقرة</option>
+                        <option value="مريض ضغط">مريض ضغط</option>
+                        <option value="مريض سكري">مريض سكري</option>
+                        <option value="مرض مزمن">مرض مزمن</option>
+                        <option value="بحاجة لرعاية خاصة">بحاجة لرعاية خاصة</option>
+                    </select>
+                </div>
+                <div class="col-md-12"><label>ملاحظات إضافية</label><input type="text" id="S_notes" class="form-control"></div>
+                <div class="col-md-6" style="display:none;"><label>الرقم التسلسلي</label><input type="text" id="T_serial" class="form-control"></div>
+                <div class="col-md-6" style="display:none;"><label>حالة القبول</label><input type="text" id="U_status" class="form-control" value="قيد المراجعة"></div>
+            </div>
+
+            <div class="declaration-box shadow-sm">
+                <h6 class="fw-bold text-warning-emphasis"><i class="fas fa-exclamation-triangle me-2"></i> إقرار وتعهد بصحة البيانات</h6>
+                <p class="small mb-2">أنا الموقع أدناه <b><span id="decl_name">---</span></b>، صاحب الهوية رقم <b><span id="decl_id">---</span></b>، أقر بأن كافة البيانات المدونة أعلاه صحيحة وعلى مسؤوليتي الشخصية.</p>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="agreeCheck" required>
+                    <label class="form-check-label fw-bold" for="agreeCheck">أوافق على الإقرار وأتعهد بصحة البيانات.</label>
+                </div>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-success w-100 p-3 rounded-pill fw-black shadow-lg mb-5">
+            <i class="fas fa-cloud-upload-alt me-2"></i> اعتماد وحفظ البيانات في المنظومة
+        </button>
+    </form>
+</div>
+
+<div id="masterLogin">
+    <div class="card p-4 shadow-lg text-center border-0" style="width: 400px; border-radius: 30px;">
+        <div class="mb-4">
+            <div class="bg-primary text-white rounded-circle d-inline-block p-4 mb-3"><i class="fas fa-user-lock fa-2x"></i></div>
+            <h3 class="fw-black">دخول الماستر</h3>
+            <p class="text-muted small">الدخول مخصص لإدارة المنظومة فقط</p>
+        </div>
+        <input type="text" id="admUser" class="form-control mb-3" placeholder="اسم المستخدم">
+        <input type="password" id="admPass" class="form-control mb-3" placeholder="كلمة المرور">
+        <button class="btn btn-primary text-white w-100 fw-bold py-3 rounded-pill" onclick="attemptLogin()">دخول آمن للمنظومة</button>
+        <button class="btn btn-link btn-sm text-muted mt-3" onclick="hideLogin()">رجوع للرئيسية</button>
+    </div>
+</div>
+
+<div id="adminDashboard">
+    <div class="sidebar">
+        <div class="text-center p-3 mb-4">
+            <img src="https://cdn-icons-png.flaticon.com/512/1063/1063376.png" width="80" class="mb-2 shadow rounded-circle">
+            <h6 class="fw-black mb-0">لوحة تحكم بيت حانون</h6>
+            <span class="badge bg-info mt-2" id="admRole">مدير النظام</span>
+        </div>
+        <hr class="mx-3 opacity-25">
+        <a href="#" class="nav-link active"><i class="fas fa-table me-2"></i> قاعدة البيانات</a>
+        <a href="#" class="nav-link" onclick="applySpecialFilter('widow')"><i class="fas fa-female me-2"></i> الأرامل والمطلقات</a>
+        <a href="#" class="nav-link" onclick="applySpecialFilter('pregnant')"><i class="fas fa-baby me-2"></i> الحوامل والمرضعات</a>
+        <a href="#" class="nav-link" onclick="exportToExcel()"><i class="fas fa-file-excel me-2"></i> تصدير إكسل</a>
+        <div class="mt-auto p-4" style="position: absolute; bottom: 0; width: 100%;">
+            <button class="btn btn-danger w-100 rounded-pill" onclick="location.reload()"><i class="fas fa-power-off me-2"></i> خروج</button>
+        </div>
+    </div>
+
+    <div class="header-admin d-flex justify-content-between align-items-center mb-5">
+        <h2 class="fw-black m-0">قاعدة البيانات المركزية <span class="text-muted fs-6">| تحديث مباشر</span></h2>
+        <button class="btn btn-white shadow-sm rounded-pill px-4 fw-bold" onclick="refreshMasterData()">تحديث القوائم <i class="fas fa-sync-alt ms-2"></i></button>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-3"><div class="stat-card shadow-sm"><h6>إجمالي العائلات</h6><h2 id="totalF">0</h2></div></div>
+        <div class="col-md-3"><div class="stat-card shadow-sm"><h6>أرامل ومطلقات</h6><h2 id="totalW">0</h2></div></div>
+        <div class="col-md-3"><div class="stat-card shadow-sm"><h6>حوامل ومرضعات</h6><h2 id="totalP">0</h2></div></div>
+        <div class="col-md-3"><div class="stat-card shadow-sm"><h6>إجمالي الأفراد</h6><h2 id="totalM">0</h2></div></div>
+    </div>
+
+    <div class="card-custom mb-4">
+        <div class="row g-3">
+            <div class="col-md-6"><input type="text" id="f_general" class="form-control" placeholder="بحث ذكي بالاسم، الهوية، أو الجوال..." oninput="applyFilters()"></div>
+            <div class="col-md-6">
+                <select id="f_special" class="form-select" onchange="applyFilters()">
+                    <option value="">جميع الحالات المسجلة</option>
+                    <option value="widow">الأرامل والمطلقات</option>
+                    <option value="pregnant">الحوامل</option>
+                    <option value="nursing">المرضعات</option>
+                    <option value="large">العائلات الكبيرة (أكثر من 7)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-custom p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">اسم رب الأسرة</th>
+                        <th>الهوية</th>
+                        <th>الجوال</th>
+                        <th>الحالة</th>
+                        <th>الأفراد</th>
+                        <th>حالة القبول</th>
+                        <th class="text-center">إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="masterTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // الرابط الموحد للربط بين العمليات
+    const API_URL = "https://script.google.com/macros/s/AKfycbwnNr23-2e4xC_eWog9t63sn81BhLO4sqkkc3cRbheRg8O_4rCUmAUHOHZnR5bNSoJx/exec";
+    let MASTER_DATA = [];
+
+    function showLogin() { document.getElementById('masterLogin').style.display = 'flex'; }
+    function hideLogin() { document.getElementById('masterLogin').style.display = 'none'; }
+    function toggleLoader(show) { document.getElementById('loader').style.display = show ? 'flex' : 'none'; }
+
+    function calculateAge(dob, targetId) {
+        if(!dob) return;
+        const age = Math.abs(new Date(Date.now() - new Date(dob).getTime()).getUTCFullYear() - 1970);
+        document.getElementById(targetId).value = age;
+    }
+
+    // البحث وجلب بيانات المستخدم
+    async function fetchUser() {
+        const id = document.getElementById('searchID').value;
+        if(id.length < 9) return Swal.fire('تنبيه', 'يرجى إدخال رقم هوية صحيح', 'warning');
+        
+        toggleLoader(true);
+        try {
+            const res = await fetch(`${API_URL}?action=getUser&id=${id}`);
+            const result = await res.json();
+            
+            document.getElementById('regForm').style.display = 'block';
+            document.getElementById('B_head_id').value = id;
+            document.getElementById('decl_id').innerText = id;
+
+            if(result.status === "success") {
+                const d = result.data;
+                document.getElementById('A_head_name').value = d.head_name || "";
+                document.getElementById('C_head_dob').value = d.head_dob || "";
+                if(d.head_dob) calculateAge(d.head_dob, 'D_head_age');
+                document.getElementById('E_phone1').value = d.phone1 || "";
+                document.getElementById('F_phone2').value = d.phone2 || "";
+                document.getElementById('G_wife_name').value = d.wife_name || "";
+                document.getElementById('H_wife_id').value = d.wife_id || "";
+                document.getElementById('J_wife_dob').value = d.wife_dob || "";
+                if(d.wife_dob) calculateAge(d.wife_dob, 'I_wife_age');
+                document.getElementById('K_marital').value = d.status || "متزوج";
+                document.getElementById('L_members').value = d.members || "1";
+                document.getElementById('M_disab').value = d.disabilities || "لا يوجد";
+                document.getElementById('N_health').value = d.health || "جيدة جداً";
+                document.getElementById('O_preg').value = d.is_p || "لا";
+                document.getElementById('P_nurs').value = d.is_n || "لا";
+                document.getElementById('Q_gender').value = d.head_gender || "ذكر";
+                document.getElementById('R_camp').value = d.camp || "";
+                document.getElementById('S_notes').value = d.notes || "";
+                document.getElementById('decl_name').innerText = d.head_name || "---";
+                Swal.fire('تم العثور على ملفك', 'يمكنك تحديث البيانات الآن', 'success');
+            } else {
+                Swal.fire('ملف جديد', 'يرجى تعبئة الحقول للتسجيل لأول مرة', 'info');
+                document.getElementById('regForm').reset();
+                document.getElementById('B_head_id').value = id;
+            }
+        } catch(e) { Swal.fire('خطأ', 'فشل الاتصال بقاعدة البيانات', 'error'); }
+        toggleLoader(false);
+    }
+
+    // حفظ البيانات (سيراها المدير فوراً)
+    async function handleSave(e) {
+        e.preventDefault();
+        if(!document.getElementById('agreeCheck').checked) return Swal.fire('تنبيه', 'يجب الموافقة على الإقرار', 'warning');
+
+        toggleLoader(true);
+        const payload = {
+            head_name: document.getElementById('A_head_name').value,
+            head_id: document.getElementById('B_head_id').value,
+            head_dob: document.getElementById('C_head_dob').value,
+            head_age: document.getElementById('D_head_age').value,
+            phone1: document.getElementById('E_phone1').value,
+            phone2: document.getElementById('F_phone2').value,
+            wife_name: document.getElementById('G_wife_name').value,
+            wife_id: document.getElementById('H_wife_id').value,
+            wife_age: document.getElementById('I_wife_age').value,
+            wife_dob: document.getElementById('J_wife_dob').value,
+            status: document.getElementById('K_marital').value,
+            members: document.getElementById('L_members').value,
+            disabilities: document.getElementById('M_disab').value,
+            health: document.getElementById('N_health').value,
+            is_p: document.getElementById('O_preg').value,
+            is_n: document.getElementById('P_nurs').value,
+            head_gender: document.getElementById('Q_gender').value,
+            camp: document.getElementById('R_camp').value,
+            notes: document.getElementById('S_notes').value,
+            accept_status: "تم التحديث"
+        };
+
+        try {
+            await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+            Swal.fire('نجاح', 'تم حفظ بياناتك ومزامنتها مع المدير بنجاح', 'success').then(() => location.reload());
+        } catch(e) { Swal.fire('خطأ', 'فشل الحفظ والمزامنة', 'error'); }
+        toggleLoader(false);
+    }
+
+    // تسجيل دخول المدير وفتح الجدول المربوط
+    async function attemptLogin() {
+        const u = document.getElementById('admUser').value;
+        const p = document.getElementById('admPass').value;
+        toggleLoader(true);
+        try {
+            const res = await fetch(`${API_URL}?action=login&user=${u}&pass=${p}`);
+            const data = await res.json();
+            if(data.status === "success") {
+                Swal.fire({ title: `أهلاً بك ${data.name}`, icon: 'success', timer: 1500, showConfirmButton: false }).then(() => {
+                    hideLogin();
+                    document.getElementById('publicUI').style.display = 'none';
+                    document.getElementById('adminDashboard').style.display = 'block';
+                    document.getElementById('admRole').innerText = data.name;
+                    refreshMasterData(); // جلب الجدول فوراً
+                });
+            } else { Swal.fire('خطأ', 'بيانات الدخول غير صحيحة', 'error'); }
+        } catch(e) { Swal.fire('خطأ', 'فشل الربط بالسيرفر', 'error'); }
+        toggleLoader(false);
+    }
+
+    async function refreshMasterData() {
+        toggleLoader(true);
+        try {
+            const res = await fetch(`${API_URL}?action=getAllData`);
+            MASTER_DATA = await res.json();
+            renderTable(MASTER_DATA);
+            updateStats(MASTER_DATA);
+        } catch(e) { console.error("Load Error"); }
+        toggleLoader(false);
+    }
+
+    function renderTable(data) {
+        const body = document.getElementById('masterTableBody');
+        body.innerHTML = data.map(row => `
+            <tr>
+                <td class="ps-4 fw-bold">${row.head_name}</td>
+                <td><span class="badge bg-secondary">${row.head_id}</span></td>
+                <td>${row.phone1 || '---'}</td>
+                <td><span class="badge bg-success-subtle text-success">${row.status}</span></td>
+                <td class="text-center">${row.members}</td>
+                <td><span class="badge bg-light text-dark border">${row.accept_status || 'قيد المراجعة'}</span></td>
+                <td class="text-center"><button class="btn btn-sm btn-outline-info rounded-pill"><i class="fas fa-eye"></i></button></td>
+            </tr>
+        `).join('');
+    }
+
+    function updateStats(data) {
+        document.getElementById('totalF').innerText = data.length;
+        document.getElementById('totalM').innerText = data.reduce((s, r) => s + (parseInt(r.members) || 0), 0);
+        document.getElementById('totalW').innerText = data.filter(d => d.status === "أرمل" || d.status === "مطلق").length;
+        document.getElementById('totalP').innerText = data.filter(d => d.is_p === "نعم").length;
+    }
+
+    function applyFilters() {
+        const txt = document.getElementById('f_general').value.toLowerCase();
+        const spec = document.getElementById('f_special').value;
+        const filtered = MASTER_DATA.filter(d => {
+            const matchTxt = (d.head_name && d.head_name.toLowerCase().includes(txt)) || (d.head_id && d.head_id.toString().includes(txt));
+            let matchSpec = true;
+            if(spec === "widow") matchSpec = (d.status === "أرمل" || d.status === "مطلق");
+            if(spec === "pregnant") matchSpec = (d.is_p === "نعم");
+            return matchTxt && matchSpec;
+        });
+        renderTable(filtered);
+    }
+
+    function exportToExcel() {
+        const ws = XLSX.utils.json_to_sheet(MASTER_DATA);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Data");
+        XLSX.writeFile(wb, "منظومة_بيت_حانون_2026.xlsx");
+    }
+</script>
+</body>
+</html>
